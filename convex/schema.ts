@@ -12,14 +12,14 @@ export default defineSchema({
     ),
     phone: v.optional(v.string()),
     paymentMethods: v.optional(v.array(v.string())),
-    age: v.optional(v.number()), // Age for user profile
+    age: v.optional(v.number()), 
   }),
 
   safaris: defineTable({
     date: v.string(), 
-    title: v.string(),
-    description: v.string(),
-    maxCapacity: v.number(),
+    title: v.string(), // this is add to meaning fill name to identify the group
+    description: v.string(), // any speial note added to the safari
+    maxCapacity: v.number(),  // this need to limit 7
     basePrice: v.number(),
     userId: v.id("users"), 
     status: v.union(
