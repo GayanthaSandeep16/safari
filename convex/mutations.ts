@@ -5,6 +5,78 @@ import { nanoid } from "nanoid";
 import { api } from "./_generated/api";
 
 /**
+ * Creates a new safari.
+ * @param ctx - The Convex mutation context.
+ * @param args - Contains date, title, description, maxCapacity, basePrice, userId, status, isShared.
+ * @returns A promise resolving to the ID of the created safari.
+ */
+export const createSafari = mutation({
+  args: {
+    date: v.string(),
+    title: v.string(),
+    description: v.string(),
+    maxCapacity: v.number(),
+    basePrice: v.number(),
+    userId: v.id("users"),
+    status: v.union(v.literal("active"), v.literal("completed"), v.literal("cancelled")),
+    isShared: v.boolean(),
+  },
+  handler: async (ctx: MutationCtx, args) => {
+    // Validate user exists
+    const user = await ctx.db.get(args.userId);
+    if (!user) throw new Error("User not found");
+
+    const safariId = await ctx.db.insert("safaris", {
+      date: args.date,
+      title: args.title,
+      description: args.description,
+      maxCapacity: args.maxCapacity,
+      basePrice: args.basePrice,
+      userId: args.userId,
+      status: args.status,
+      imageUrl: undefined,
+      isShared: args.isShared,
+    });
+    return safariId;
+  },
+});
+
+/**
+ * Creates a new booking for a safari.
+ * @param ctx - The Convex mutation context.
+ * @param args - Contains safariId, userId, bookingType, status, createdAt.
+ * @returns A promise resolving to the ID of the created booking.
+ */
+export const createBooking = mutation({
+  args: {
+    safariId: v.id("safaris"),
+    userId: v.id("users"),
+    bookingType: v.union(v.literal("individual"), v.literal("group")),
+    status: v.union(v.literal("pending"), v.literal("confirmed"), v.literal("cancelled")),
+    createdAt: v.string(),
+  },
+  handler: async (ctx: MutationCtx, args) => {
+    // Validate safari exists
+    const safari = await ctx.db.get(args.safariId);
+    if (!safari) throw new Error("Safari not found");
+
+    // Validate user exists
+    const user = await ctx.db.get(args.userId);
+    if (!user) throw new Error("User not found");
+
+    const bookingId = await ctx.db.insert("bookings", {
+      safariId: args.safariId,
+      userId: args.userId,
+      bookingType: args.bookingType,
+      status: args.status,
+      paymentId: undefined,
+      createdAt: args.createdAt,
+    });
+    return bookingId;
+  },
+});
+
+/**
  * Creates a new group for a safari.
  * @param ctx - The Convex mutation context.
  * @param args - Contains safariId, leadId, hasGuide, maxSize, and joinFee.
