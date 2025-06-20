@@ -162,6 +162,10 @@ export const joinGroup = mutation({
       status: group.currentSize + 1 === group.maxSize ? "full" : "open",
     });
 
+    //
+    
+    
+
     // Create booking
     const bookingId = await ctx.db.insert("bookings", {
       safariId: group.safariId,
@@ -180,6 +184,42 @@ export const joinGroup = mutation({
       });
     }
     return bookingId;
+  },
+});
+
+export const createPayment = mutation({
+  args: {
+    userId: v.id('users'),
+    amount: v.number(),
+    currency: v.string(),
+    method: v.string(),
+    status: v.union(v.literal('pending'), v.literal('completed'), v.literal('failed'), v.literal('refunded')),
+    transactionId: v.string(),
+    timestamp: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert('payments', args);
+  },
+});
+
+export const updatePayment = mutation({
+  args: {
+    transactionId: v.string(),
+    status: v.union(v.literal("completed"), v.literal("pending"), v.literal("failed")),
+  },
+  handler: async (ctx, args) => {
+    const payment = await ctx.db
+      .query("payments")
+      .withIndex("by_transactionId", (q) => q.eq("transactionId", args.transactionId))
+      .first();
+
+    if (!payment) {
+      console.error(`Payment with transactionId ${args.transactionId} not found.`);
+      return null;
+    }
+
+    await ctx.db.patch(payment._id, { status: args.status });
+    return payment._id;
   },
 });
 

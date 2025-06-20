@@ -32,21 +32,14 @@ export const getSafaris = query({
  * @returns A promise resolving to an array of unique group objects.
  */
 export const getGroupsByUser = query({
-  args: { userId: v.id("users") },
-  handler: async (ctx: QueryCtx, args: { userId: Id<"users"> }) => {
-    const [leadGroups, allGroups] = await Promise.all([
-      ctx.db.query("groups").filter((q) => q.eq(q.field("leadId"), args.userId)).collect(),
-      ctx.db.query("groups").collect(),
-    ]);
-    const memberGroups = allGroups.filter((group) => group.memberIds.includes(args.userId));
-    const allGroupsCombined = [...leadGroups, ...memberGroups];
-    const uniqueGroups = Array.from(new Set(allGroupsCombined.map((g) => g._id))).map((id) =>
-      allGroupsCombined.find((g) => g._id === id)!
-    );
-    return uniqueGroups;
+  args: { userId: v.string() }, // Accept string userId
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("groups")
+      .filter((q) => q.eq(q.field("leadId"), args.userId))
+      .collect();
   },
-});
-
+})
 /**
  * Retrieves all users.
  * @param ctx - The Convex query context.
