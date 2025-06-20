@@ -1,23 +1,28 @@
-// src/app/dashboard/page.tsx
-import { currentUser } from "@clerk/nextjs/server";
-import { useAuth, UserButton } from "@clerk/nextjs";
+'use client';
+
+import { UserButton, useUser } from "@clerk/nextjs";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Users, Share2, MessageCircle } from "lucide-react";
-import { redirect } from "next/navigation";
+import { useRouter } from "next/navigation";
 
-export default async function Dashboard() {
-  const { userId } = useAuth();
-  const user = await currentUser();
-
-  if (!userId || !user) {
-    return redirect('/');
-  }
+export default function DashboardClient() {
+  const router = useRouter();
+  const { isLoaded, isSignedIn, user } = useUser();
 
   const handleWhatsAppContact = () => {
     window.open("https://wa.me/+1234567890", "_blank");
   };
+
+  if (!isLoaded) {
+    return <div>Loading...</div>; // Or a loading spinner
+  }
+
+  if (!isSignedIn) {
+    router.push('/sign-in');
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background p-4">
@@ -66,7 +71,7 @@ export default async function Dashboard() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card
                 className="cursor-pointer hover:shadow-lg transition-shadow"
-                onClick={() => redirect("/safari")}
+                onClick={() => router.push("/safari")}
               >
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -82,7 +87,7 @@ export default async function Dashboard() {
 
               <Card
                 className="cursor-pointer hover:shadow-lg transition-shadow"
-                onClick={() => redirect("/groups")}
+                onClick={() => router.push("/groups")}
               >
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -98,7 +103,7 @@ export default async function Dashboard() {
 
               <Card
                 className="cursor-pointer hover:shadow-lg transition-shadow"
-                onClick={() => redirect("/share")}
+                onClick={() => router.push("/share")}
               >
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -122,7 +127,7 @@ export default async function Dashboard() {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">No safaris booked yet.</p>
-                <Button className="mt-4" onClick={() => redirect("/safari")}>
+                <Button className="mt-4" onClick={() => router.push("/safari")}>
                   Book Your First Safari
                 </Button>
               </CardContent>
@@ -137,7 +142,7 @@ export default async function Dashboard() {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">No groups yet.</p>
-                <Button className="mt-4" onClick={() => redirect("/groups")}>
+                <Button className="mt-4" onClick={() => router.push("/groups")}>
                   Create or Join Groups
                 </Button>
               </CardContent>
@@ -152,7 +157,7 @@ export default async function Dashboard() {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">No sharing activity yet.</p>
-                <Button className="mt-4" onClick={() => redirect("/share")}>
+                <Button className="mt-4" onClick={() => router.push("/share")}>
                   Start Sharing
                 </Button>
               </CardContent>

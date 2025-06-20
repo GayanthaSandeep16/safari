@@ -1,4 +1,3 @@
-    // app/(dashboard)/groups/page.tsx
 'use client';
 
 import { useState } from 'react';
@@ -13,13 +12,17 @@ import { loadStripe } from '@stripe/stripe-js';
 import { ArrowLeft } from 'lucide-react';
 import { CardDescription } from '@/components/ui/index';
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+// Safely initialize Stripe
+const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
 
 export default function GroupsPage() {
   const { user } = useUser();
   const router = useRouter();
   const safaris = useQuery(api.queries.getSafaris, { status: 'active' }) || [];
-  const groups = useQuery(api.queries.getGroupsByUser, { userId: user?.id as Id<'users'> }) || [];
+  
+  // Pass user.id as a string, let the query handle the conversion
+  const groups = useQuery(api.queries.getGroupsByUser, user ? { userId: user.id } : "skip") || [];
   const createGroup = useMutation(api.mutations.createGroup);
   const joinGroup = useMutation(api.mutations.joinGroup);
 
@@ -36,7 +39,7 @@ export default function GroupsPage() {
       const maxSize = hasGuide ? 7 : 6;
       await createGroup({
         safariId: selectedSafari as Id<'safaris'>,
-        leadId: user.id as Id<'users'>,
+        leadId: user.id as Id<'users'>, // This might still need adjustment
         hasGuide,
         maxSize,
         joinFee: 1,
@@ -51,8 +54,8 @@ export default function GroupsPage() {
   };
 
   const handleJoinGroup = async () => {
-    if (!joinToken || !user) {
-      toast.error('Please enter a valid share token and ensure you are logged in.');
+    if (!joinToken || !user || !stripePromise) {
+      toast.error('Please enter a valid share token, ensure you are logged in, and check Stripe configuration.');
       return;
     }
     try {
