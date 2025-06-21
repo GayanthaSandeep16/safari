@@ -13,9 +13,12 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as clerk from "../clerk.js";
 import type * as functions_sendEmail from "../functions/sendEmail.js";
 import type * as mutations from "../mutations.js";
 import type * as queries from "../queries.js";
+import type * as types from "../types.js";
+import type * as users from "../users.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -26,9 +29,12 @@ import type * as queries from "../queries.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  clerk: typeof clerk;
   "functions/sendEmail": typeof functions_sendEmail;
   mutations: typeof mutations;
   queries: typeof queries;
+  types: typeof types;
+  users: typeof users;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,
