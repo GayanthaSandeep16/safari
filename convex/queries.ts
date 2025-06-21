@@ -85,6 +85,39 @@ export const getPayments = query({
 });
 
 /**
+ * Gets active safaris, potentially linked with their associated shared groups.
+ * Used for displaying joinable safaris.
+ */
+export const getSafarisForJoining = query({
+  args: {
+    status: v.string(), // e.g., 'active'
+  },
+  handler: async (ctx, args) => {
+    const safaris = await ctx.db
+      .query("safaris")
+      .filter((q) => q.eq(q.field("status"), args.status))
+      .collect();
+
+    // For each safari, try to find an associated *shared and open* group
+    const safarisWithGroups = await Promise.all(
+      safaris.map(async (safari) => {
+        const group = await ctx.db
+          .query("groups")
+          .filter((q) =>
+            q.and(
+              q.eq(q.field("safariId"), safari._id),
+              q.eq(q.field("status"), "open") // Ensure it's open
+            )
+          )
+          .first();
+        return { ...safari, group }; // Attach the group data if found
+      })
+    );
+
+    return safarisWithGroups;
+  },
+});
+/**
  * Retrieves a group by its share token.
  * @param ctx - The Convex query context.
  * @param args - Contains the shareToken of the group.

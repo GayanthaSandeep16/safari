@@ -8,8 +8,9 @@ export default defineSchema({
     email: v.string(),
     role: v.union(v.literal("user"), v.literal("admin")),
     phone: v.optional(v.string()),
+    contry:v.optional(v.string()),
     paymentMethods: v.optional(v.array(v.string())),
-    age: v.optional(v.number()),
+    age: v.optional(v.optional(v.number())),
   }),
 
   safaris: defineTable({
@@ -48,7 +49,7 @@ export default defineSchema({
 
   groups: defineTable({
     safariId: v.id("safaris"),
-    leadId: v.id("users"), // Group creator (safari maintainer)
+    leadId: v.optional(v.id("users")), // Group creator (safari maintainer)
     memberIds: v.array(v.id("users")), // Only for user members
     nonUserMembers: v.optional(v.array(v.object({
       name: v.string(),

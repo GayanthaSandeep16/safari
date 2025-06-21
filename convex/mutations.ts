@@ -162,10 +162,6 @@ export const joinGroup = mutation({
       status: group.currentSize + 1 === group.maxSize ? "full" : "open",
     });
 
-    //
-    
-    
-
     // Create booking
     const bookingId = await ctx.db.insert("bookings", {
       safariId: group.safariId,
@@ -239,5 +235,67 @@ export const generateShareLink = mutation({
     const shareToken = nanoid(10);
     await ctx.db.patch(args.groupId, { shareToken });
     return shareToken;
+  },
+});
+
+/**
+ * Updates a group with non-user members and creates passenger entries.
+ * This mutation is intended to be called from the client after initial group creation.
+ * @param ctx - The Convex mutation context.
+ * @param args - Contains groupId, bookingId, leadUserId, leadPhone, members, and maxCapacity.
+ */
+export const updateGroupWithMembersAndPassengers = mutation({
+  args: {
+    groupId: v.id("groups"),
+    bookingId: v.id("bookings"),
+    leadUserId: v.id("users"),
+    leadPhone: v.string(),
+    members: v.array(v.object({
+      name: v.string(),
+      country: v.string(),
+      age: v.number(),
+      gender: v.union(v.literal('male'), v.literal('female')),
+      phone: v.string(),
+    })),
+    maxCapacity: v.number(),
+  },
+  handler: async (ctx: MutationCtx, args) => {
+    const group = await ctx.db.get(args.groupId);
+    if (!group) throw new Error("Group not found");
+
+    const currentSize = args.members.length + 1; // Lead + additional members
+
+    // Update group with non-user members and current size
+    const nonUserMembers = args.members.map(m => ({
+      name: m.name,
+      age: m.age,
+    }));
+    await ctx.db.patch(args.groupId, {
+      nonUserMembers,
+      currentSize,
+      status: currentSize === args.maxCapacity ? 'full' : 'open',
+    });
+
+    // Create Passenger for the lead user
+    await ctx.db.insert('passengers', {
+      bookingId: args.bookingId,
+      userId: args.leadUserId,
+      name: 'Lead User', // You might want to fetch the actual name from the user table
+      age: 0, // Placeholder, update if user profile has age
+      phone: args.leadPhone,
+      isUser: true,
+    });
+
+    // Create Passengers for non-user members
+    for (const member of args.members) {
+      await ctx.db.insert('passengers', {
+        bookingId: args.bookingId,
+        userId: undefined, // Non-user members don't have a userId
+        name: member.name,
+        age: member.age,
+        phone: member.phone,
+        isUser: false,
+      });
+    }
   },
 });
