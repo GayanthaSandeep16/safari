@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
 import { useAuth } from "@clerk/nextjs";
 import { Calendar as CalendarIcon, ArrowLeft } from "lucide-react";
 import {
@@ -29,14 +28,35 @@ import {
   Select,
   SelectContent,
   SelectItem,
-  SelectTrigger,
   SelectValue,
+  SelectTrigger,
 } from "@/components/ui/select";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { nanoid } from "nanoid";
 import { useQuery } from "convex/react";
+import PhoneInput from "react-phone-input-2";
+import "react-phone-input-2/lib/style.css";
+import { getData } from "country-list";
+import ReactCountryFlag from "react-country-flag";
+
+interface Country {
+  code: string;
+  name: string;
+  dial_code: string;
+  flag: string;
+}
+
+function getFlagEmoji(countryCode: string) {
+  if (!countryCode || countryCode.length !== 2) return "";
+  return String.fromCodePoint(
+    ...countryCode
+      .toUpperCase()
+      .split("")
+      .map((char) => 127397 + char.charCodeAt())
+  );
+}
 
 interface Member {
   name: string;
@@ -47,7 +67,6 @@ interface Member {
 }
 
 export default function CreateSafariGroupPage() {
-  // Renamed for clarity
   const router = useRouter();
   const { userId } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
@@ -55,7 +74,7 @@ export default function CreateSafariGroupPage() {
   const [description, setDescription] = useState("");
   const [basePrice, setBasePrice] = useState(0);
   const [hasGuide, setHasGuide] = useState(false);
-  const [isShared, setIsShared] = useState(false); // New field for group sharing
+  const [isShared, setIsShared] = useState(false);
   const [members, setMembers] = useState<Member[]>([]);
   const [newMember, setNewMember] = useState<Member>({
     name: "",
@@ -64,7 +83,8 @@ export default function CreateSafariGroupPage() {
     gender: "male",
     phone: "",
   });
-  const [leadPhone, setLeadPhone] = useState(""); // New field for lead user's phone number
+  const [leadPhone, setLeadPhone] = useState("");
+  const [leadCountry, setLeadCountry] = useState("");
 
   const createSafari = useMutation(api.mutations.createSafari);
   const createGroup = useMutation(api.mutations.createGroup);
@@ -83,9 +103,7 @@ export default function CreateSafariGroupPage() {
   }
 
   const handleAddMember = () => {
-    // Max capacity logic is applied at the group creation,
-    // but we can add a client-side check here for UX.
-    const maxAdditionalMembers = (hasGuide ? 7 : 6) - 1; // Subtract 1 for the lead user
+    const maxAdditionalMembers = (hasGuide ? 7 : 6) - 1;
     if (members.length >= maxAdditionalMembers) {
       toast.error(
         `Maximum ${maxAdditionalMembers} additional members allowed for this group size.`
@@ -96,27 +114,51 @@ export default function CreateSafariGroupPage() {
     if (
       !newMember.name ||
       !newMember.country ||
-      newMember.age <= 0 
+      newMember.age <= 0 ||
+      !newMember.phone
     ) {
       toast.error(
         "Please fill all member details: Name, Country, Age, Gender, and Phone."
       );
       return;
     }
+
+    const cleanPhone = newMember.phone.replace(/[\s+]/g, "");
+    if (!/^\+\d{7,15}$/.test(cleanPhone)) {
+      toast.error(
+        "Invalid phone number. Please enter a valid phone number with country code."
+      );
+      return;
+    }
+
     setMembers([...members, newMember]);
-    setNewMember({ name: "", country: "", age: 0, gender: "male", phone: "" }); // Reset form
+    setNewMember({ name: "", country: "", age: 0, gender: "male", phone: "" });
   };
 
   const handleCreateSafariGroup = async () => {
-    if (!convexUser._id || !selectedDate || !title || !leadPhone) {
+    if (
+      !convexUser._id ||
+      !selectedDate ||
+      !title ||
+      !leadPhone ||
+      !leadCountry
+    ) {
       toast.error("Required fields missing", {
-        description: "Please provide date, title, and your phone number.",
+        description: "Please provide date, title, phone number, and country.",
       });
       return;
     }
 
+    const cleanLeadPhone = leadPhone.replace(/[\s+]/g, "");
+    if (!/^\+\d{7,15}$/.test(cleanLeadPhone)) {
+      toast.error(
+        "Invalid lead phone number. Please enter a valid phone number with country code."
+      );
+      return;
+    }
+
     const maxCapacity = hasGuide ? 7 : 6;
-    const currentSize = members.length + 1; // Lead + additional members
+    const currentSize = members.length + 1;
 
     if (currentSize > maxCapacity) {
       toast.error(
@@ -126,7 +168,6 @@ export default function CreateSafariGroupPage() {
     }
 
     try {
-      // 1. Create Safari
       const safariId = await createSafari({
         date: format(selectedDate, "yyyy-MM-dd"),
         title,
@@ -138,48 +179,41 @@ export default function CreateSafariGroupPage() {
         isShared,
       });
 
-      // 2. Create Payment for the lead user (assuming lead pays for their spot initially)
-      // You might need more sophisticated payment logic if members pay individually later.
       const paymentId = await createPayment({
         userId: convexUser._id,
-        amount: basePrice, // Assuming lead pays for their own basePrice initially
+        amount: basePrice,
         currency: "USD",
-        method: "Stripe (example)", // Example method
-        status: "completed", // Assuming instant completion for this example
-        transactionId: nanoid(), // Generate a unique transaction ID
+        method: "Stripe (example)",
+        status: "completed",
+        transactionId: nanoid(),
         timestamp: new Date().toISOString(),
       });
 
-      // 3. Create Booking for the group lead
       const bookingId = await createBooking({
         safariId,
-        userId:convexUser._id,
-        bookingType: "group", // Lead's booking is part of a group
+        userId: convexUser._id,
+        bookingType: "group",
         status: "confirmed",
         createdAt: new Date().toISOString(),
       });
 
-      // 4. Create Group
       const groupId = await createGroup({
         safariId,
         leadId: convexUser._id,
         hasGuide,
         maxSize: maxCapacity,
-        joinFee: basePrice, // The fee for others to join
+        joinFee: basePrice,
       });
 
-      // 5. Update Group with non-user members and create Passengers
-      // This mutation also creates the lead user's passenger entry
       await updateGroupWithMembersAndPassengers({
         groupId,
         bookingId,
         leadUserId: convexUser._id,
         leadPhone,
-        members, // Pass the array of non-user members
-        maxCapacity, // Pass maxCapacity to determine status within the mutation
+        members,
+        maxCapacity,
       });
 
-      // Reset form fields
       setSelectedDate(undefined);
       setTitle("");
       setDescription("");
@@ -194,11 +228,12 @@ export default function CreateSafariGroupPage() {
         phone: "",
       });
       setLeadPhone("");
+      setLeadCountry("");
 
       toast.success("Safari group created!", {
         description: `Your safari "${title}" is scheduled for ${format(selectedDate, "PPP")}. Group ID: ${groupId}`,
       });
-      router.push("/dashboard"); // Redirect after successful creation
+      router.push("/dashboard");
     } catch (error) {
       console.error("Failed to create safari group:", error);
       toast.error("Failed to create safari group", {
@@ -228,7 +263,6 @@ export default function CreateSafariGroupPage() {
           </div>
         </div>
 
-        {/* Safari Details Card */}
         <Card>
           <CardHeader>
             <CardTitle>Safari Details</CardTitle>
@@ -285,14 +319,53 @@ export default function CreateSafariGroupPage() {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="leadCountry">Your Country</Label>
+              <Select value={leadCountry} onValueChange={setLeadCountry}>
+                <SelectTrigger id="leadCountry">
+                  <SelectValue placeholder="Select your country" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getData().map((country: { code: string; name: string }) => (
+                    <SelectItem key={country.code} value={country.name}>
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <ReactCountryFlag
+                          countryCode={country.code}
+                          svg
+                          style={{
+                            width: "1.5em",
+                            height: "1.5em",
+                            marginRight: 6,
+                          }}
+                        />
+                        {country.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="leadPhone">Your Mobile Phone Number</Label>
-              <Input
-                id="leadPhone"
-                placeholder="e.g., +1234567890"
+              <PhoneInput
+                country={"us"}
                 value={leadPhone}
-                onChange={(e) => setLeadPhone(e.target.value)}
+                onChange={(phone) => setLeadPhone(phone)}
+                inputProps={{
+                  id: "leadPhone",
+                  className:
+                    "block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                }}
+                containerClass="w-full"
+                buttonClass="rounded-l-md border border-input bg-background hover:bg-accent"
+                dropdownClass="z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md"
               />
             </div>
 
@@ -324,7 +397,6 @@ export default function CreateSafariGroupPage() {
           </CardContent>
         </Card>
 
-        {/* Add Members Card */}
         <Card>
           <CardHeader>
             <CardTitle>Add Group Members</CardTitle>
@@ -334,7 +406,6 @@ export default function CreateSafariGroupPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* New Member Input Form */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="newMemberName">Member Name</Label>
@@ -344,18 +415,6 @@ export default function CreateSafariGroupPage() {
                   value={newMember.name}
                   onChange={(e) =>
                     setNewMember({ ...newMember, name: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="newMemberCountry">Country</Label>
-                <Input
-                  id="newMemberCountry"
-                  placeholder="Country of residence"
-                  value={newMember.country}
-                  onChange={(e) =>
-                    setNewMember({ ...newMember, country: e.target.value })
                   }
                 />
               </div>
@@ -392,15 +451,60 @@ export default function CreateSafariGroupPage() {
                 </Select>
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="newMemberCountry">Country</Label>
+                <Select
+                  value={newMember.country}
+                  onValueChange={(value) =>
+                    setNewMember({ ...newMember, country: value })
+                  }
+                >
+                  <SelectTrigger id="newMemberCountry">
+                    <SelectValue placeholder="Country of residence" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getData().map(
+                      (country: { code: string; name: string }) => (
+                        <SelectItem key={country.code} value={country.name}>
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 4,
+                            }}
+                          >
+                            <ReactCountryFlag
+                              countryCode={country.code}
+                              svg
+                              style={{
+                                width: "1.5em",
+                                height: "1.5em",
+                                marginRight: 6,
+                              }}
+                            />
+                            {country.name}
+                          </span>
+                        </SelectItem>
+                      )
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="newMemberPhone">Member Phone Number</Label>
-                <Input
-                  id="newMemberPhone"
-                  placeholder="e.g., +1234567890"
+                <PhoneInput
+                  country={"us"}
                   value={newMember.phone}
-                  onChange={(e) =>
-                    setNewMember({ ...newMember, phone: e.target.value })
-                  }
+                  onChange={(phone) => setNewMember({ ...newMember, phone })}
+                  inputProps={{
+                    id: "newMemberPhone",
+                    className:
+                      "block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  }}
+                  containerClass="w-full"
+                  buttonClass="rounded-l-md border border-input bg-background hover:bg-accent"
+                  dropdownClass="z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md"
                 />
               </div>
             </div>
@@ -409,7 +513,6 @@ export default function CreateSafariGroupPage() {
               Add Member to Group
             </Button>
 
-            {/* List of Added Members */}
             {members.length > 0 && (
               <div className="mt-6 space-y-2">
                 <h3 className="text-lg font-semibold">
@@ -419,7 +522,9 @@ export default function CreateSafariGroupPage() {
                   {members.map((member, index) => (
                     <li key={index} className="text-sm text-muted-foreground">
                       {member.name} ({member.gender}, {member.age} yrs, from{" "}
-                      {member.country}, Phone: {member.phone})
+                      {getData().find((c) => c.name === member.country)?.name ||
+                        member.country}
+                      , Phone: {member.phone})
                     </li>
                   ))}
                 </ul>
@@ -428,7 +533,6 @@ export default function CreateSafariGroupPage() {
           </CardContent>
         </Card>
 
-        {/* Create Group Button */}
         <div className="pt-6">
           <Button
             onClick={handleCreateSafariGroup}
