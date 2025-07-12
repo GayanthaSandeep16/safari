@@ -59,16 +59,15 @@ export default function DashboardClient() {
         </Card>
 
         {/* Main Dashboard Tabs */}
-        <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4">
+        <Tabs defaultValue="overview" className="space-y-3">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="safaris">Safaris</TabsTrigger>
             <TabsTrigger value="groups">Groups</TabsTrigger>
-            <TabsTrigger value="sharing">Sharing</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Card
                 className="cursor-pointer hover:shadow-lg transition-shadow"
                 onClick={() => router.push("/safari")}
@@ -100,22 +99,6 @@ export default function DashboardClient() {
                   <Button className="w-full">Manage Groups</Button>
                 </CardContent>
               </Card>
-
-              <Card
-                className="cursor-pointer hover:shadow-lg transition-shadow"
-                onClick={() => router.push("/share")}
-              >
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Share2 className="h-5 w-5" />
-                    Share & Invite
-                  </CardTitle>
-                  <CardDescription>Share safaris and invite others</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button className="w-full">Share Safaris</Button>
-                </CardContent>
-              </Card>
             </div>
           </TabsContent>
 
@@ -144,21 +127,6 @@ export default function DashboardClient() {
                 <p className="text-muted-foreground">No groups yet.</p>
                 <Button className="mt-4" onClick={() => router.push("/groups")}>
                   Create or Join Groups
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="sharing">
-            <Card>
-              <CardHeader>
-                <CardTitle>Sharing Activity</CardTitle>
-                <CardDescription>Your shared links and invitations</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">No sharing activity yet.</p>
-                <Button className="mt-4" onClick={() => router.push("/share")}>
-                  Start Sharing
                 </Button>
               </CardContent>
             </Card>
