@@ -4,14 +4,15 @@ import { v } from "convex/values";
 
 export default defineSchema({
  users: defineTable({
+    clerkId: v.string(),
     name: v.string(),
     email: v.string(),
     role: v.union(v.literal("user"), v.literal("admin")),
     phone: v.optional(v.string()),
-    contry:v.optional(v.string()),
+    country: v.optional(v.string()),
     paymentMethods: v.optional(v.array(v.string())),
-    age: v.optional(v.optional(v.number())),
-  }),
+    age: v.optional(v.number()),
+  }).index("by_clerk_id", ["clerkId"]),
 
   safaris: defineTable({
     date: v.string(), 
