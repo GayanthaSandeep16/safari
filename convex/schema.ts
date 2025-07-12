@@ -3,23 +3,22 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
-  users: defineTable({
+ users: defineTable({
+    clerkId: v.string(),
     name: v.string(),
     email: v.string(),
-    role: v.union(
-      v.literal("user"),
-      v.literal("admin")
-    ),
+    role: v.union(v.literal("user"), v.literal("admin")),
     phone: v.optional(v.string()),
+    country: v.optional(v.string()),
     paymentMethods: v.optional(v.array(v.string())),
-    age: v.optional(v.number()), // Age for user profile
-  }),
+    age: v.optional(v.number()),
+  }).index("by_clerk_id", ["clerkId"]),
 
   safaris: defineTable({
     date: v.string(), 
-    title: v.string(),
-    description: v.string(),
-    maxCapacity: v.number(),
+    title: v.string(), // this is add to meaning fill name to identify the group
+    description: v.string(), // any speial note added to the safari
+    maxCapacity: v.number(),  // this need to limit 7
     basePrice: v.number(),
     userId: v.id("users"), 
     status: v.union(
@@ -51,7 +50,7 @@ export default defineSchema({
 
   groups: defineTable({
     safariId: v.id("safaris"),
-    leadId: v.id("users"), // Group creator (safari maintainer)
+    leadId: v.optional(v.id("users")), // Group creator (safari maintainer)
     memberIds: v.array(v.id("users")), // Only for user members
     nonUserMembers: v.optional(v.array(v.object({
       name: v.string(),
@@ -72,6 +71,7 @@ export default defineSchema({
 
   passengers: defineTable({
     bookingId: v.id("bookings"),
+    groupId: v.id("groups"),
     userId: v.optional(v.id("users")), // Null for non-user passengers
     name: v.string(),
     age: v.number(), // Required age field
@@ -80,7 +80,9 @@ export default defineSchema({
     specialRequirements: v.optional(v.string()),
     isUser: v.boolean(), // Whether this is a registered user
   }).index("by_bookingId", ["bookingId"])
-    .index("by_userId", ["userId"]),
+    .index("by_userId", ["userId"])
+    .index("by_groupId", ["groupId"]),
+
 
   payments: defineTable({
     userId: v.optional(v.id("users")), // Optional for non-user payments

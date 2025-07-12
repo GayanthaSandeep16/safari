@@ -13,6 +13,12 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as functions_sendEmail from "../functions/sendEmail.js";
+import type * as http from "../http.js";
+import type * as mutations from "../mutations.js";
+import type * as queries from "../queries.js";
+import type * as types from "../types.js";
+import type * as users from "../users.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -22,7 +28,14 @@ import type {
  * const myFunctionReference = api.myModule.myFunction;
  * ```
  */
-declare const fullApi: ApiFromModules<{}>;
+declare const fullApi: ApiFromModules<{
+  "functions/sendEmail": typeof functions_sendEmail;
+  http: typeof http;
+  mutations: typeof mutations;
+  queries: typeof queries;
+  types: typeof types;
+  users: typeof users;
+}>;
 export declare const api: FilterApi<
   typeof fullApi,
   FunctionReference<any, "public">

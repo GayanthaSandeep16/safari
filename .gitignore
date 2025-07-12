@@ -40,3 +40,5 @@ yarn-error.log*
 next-env.d.ts
 
 .Architecture Plan for Commercial Safari Web App.markdown
+# clerk configuration (can include secrets)
+/.clerk/
