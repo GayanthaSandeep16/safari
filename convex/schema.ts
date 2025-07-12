@@ -71,6 +71,7 @@ export default defineSchema({
 
   passengers: defineTable({
     bookingId: v.id("bookings"),
+    groupId: v.id("groups"),
     userId: v.optional(v.id("users")), // Null for non-user passengers
     name: v.string(),
     age: v.number(), // Required age field
@@ -79,7 +80,9 @@ export default defineSchema({
     specialRequirements: v.optional(v.string()),
     isUser: v.boolean(), // Whether this is a registered user
   }).index("by_bookingId", ["bookingId"])
-    .index("by_userId", ["userId"]),
+    .index("by_userId", ["userId"])
+    .index("by_groupId", ["groupId"]),
+
 
   payments: defineTable({
     userId: v.optional(v.id("users")), // Optional for non-user payments

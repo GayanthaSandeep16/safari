@@ -36,6 +36,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { nanoid } from "nanoid";
+import { useQuery } from "convex/react";
 
 interface Member {
   name: string;
@@ -52,7 +53,7 @@ export default function CreateSafariGroupPage() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [basePrice, setBasePrice] = useState(100);
+  const [basePrice, setBasePrice] = useState(0);
   const [hasGuide, setHasGuide] = useState(false);
   const [isShared, setIsShared] = useState(false); // New field for group sharing
   const [members, setMembers] = useState<Member[]>([]);
@@ -73,6 +74,14 @@ export default function CreateSafariGroupPage() {
     api.mutations.updateGroupWithMembersAndPassengers
   );
 
+  const users = useQuery(api.queries.getUsers) || [];
+  const convexUser = users.find((u) => u.clerkId === userId);
+
+  if (!convexUser) {
+    toast.error("User not found in Convex database.");
+    return null;
+  }
+
   const handleAddMember = () => {
     // Max capacity logic is applied at the group creation,
     // but we can add a client-side check here for UX.
@@ -87,8 +96,7 @@ export default function CreateSafariGroupPage() {
     if (
       !newMember.name ||
       !newMember.country ||
-      newMember.age <= 0 ||
-      !newMember.phone
+      newMember.age <= 0 
     ) {
       toast.error(
         "Please fill all member details: Name, Country, Age, Gender, and Phone."
@@ -100,7 +108,7 @@ export default function CreateSafariGroupPage() {
   };
 
   const handleCreateSafariGroup = async () => {
-    if (!userId || !selectedDate || !title || !leadPhone) {
+    if (!convexUser._id || !selectedDate || !title || !leadPhone) {
       toast.error("Required fields missing", {
         description: "Please provide date, title, and your phone number.",
       });
@@ -125,7 +133,7 @@ export default function CreateSafariGroupPage() {
         description,
         maxCapacity,
         basePrice,
-        userId: userId as Id<"users">,
+        userId: convexUser._id,
         status: "active",
         isShared,
       });
@@ -133,7 +141,7 @@ export default function CreateSafariGroupPage() {
       // 2. Create Payment for the lead user (assuming lead pays for their spot initially)
       // You might need more sophisticated payment logic if members pay individually later.
       const paymentId = await createPayment({
-        userId: userId as Id<"users">,
+        userId: convexUser._id,
         amount: basePrice, // Assuming lead pays for their own basePrice initially
         currency: "USD",
         method: "Stripe (example)", // Example method
@@ -145,7 +153,7 @@ export default function CreateSafariGroupPage() {
       // 3. Create Booking for the group lead
       const bookingId = await createBooking({
         safariId,
-        userId: userId as Id<"users">,
+        userId:convexUser._id,
         bookingType: "group", // Lead's booking is part of a group
         status: "confirmed",
         createdAt: new Date().toISOString(),
@@ -154,7 +162,7 @@ export default function CreateSafariGroupPage() {
       // 4. Create Group
       const groupId = await createGroup({
         safariId,
-        leadId: userId as Id<"users">,
+        leadId: convexUser._id,
         hasGuide,
         maxSize: maxCapacity,
         joinFee: basePrice, // The fee for others to join
@@ -165,7 +173,7 @@ export default function CreateSafariGroupPage() {
       await updateGroupWithMembersAndPassengers({
         groupId,
         bookingId,
-        leadUserId: userId as Id<"users">,
+        leadUserId: convexUser._id,
         leadPhone,
         members, // Pass the array of non-user members
         maxCapacity, // Pass maxCapacity to determine status within the mutation
@@ -175,7 +183,6 @@ export default function CreateSafariGroupPage() {
       setSelectedDate(undefined);
       setTitle("");
       setDescription("");
-      setBasePrice(100);
       setHasGuide(false);
       setIsShared(false);
       setMembers([]);
@@ -278,16 +285,6 @@ export default function CreateSafariGroupPage() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="basePrice">Base Price per Person ($)</Label>
-              <Input
-                id="basePrice"
-                type="number"
-                value={basePrice}
-                onChange={(e) => setBasePrice(Number(e.target.value))}
-                min="0"
-              />
-            </div>
 
             <div className="space-y-2">
               <Label htmlFor="leadPhone">Your Mobile Phone Number</Label>

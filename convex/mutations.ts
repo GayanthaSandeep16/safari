@@ -279,6 +279,7 @@ export const updateGroupWithMembersAndPassengers = mutation({
     // Create Passenger for the lead user
     await ctx.db.insert('passengers', {
       bookingId: args.bookingId,
+      groupId: args.groupId,
       userId: args.leadUserId,
       name: 'Lead User', // You might want to fetch the actual name from the user table
       age: 0, // Placeholder, update if user profile has age
@@ -290,6 +291,7 @@ export const updateGroupWithMembersAndPassengers = mutation({
     for (const member of args.members) {
       await ctx.db.insert('passengers', {
         bookingId: args.bookingId,
+        groupId: args.groupId,
         userId: undefined, // Non-user members don't have a userId
         name: member.name,
         age: member.age,
